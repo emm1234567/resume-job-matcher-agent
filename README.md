@@ -6,14 +6,6 @@
 
 ---
 
-## ✨ 在线体验
-
-提供两种使用方式：
-- **Web 界面**：通过浏览器上传简历和 JD，可视化查看评估结果
-- **CLI 命令行**：适合批量处理或脚本集成
-
----
-
 ## 项目亮点
 
 本项目在设计上规避了"套壳 LLM"的常见问题，重点体现三项企业级技术思维：
@@ -48,6 +40,7 @@ JD 文件 ────────────────┘                   
 
 ```
 app.py            ← FastAPI Web 服务入口（含路由和静态文件）
+run.py            ← 一键启动脚本（打印可点击的访问地址）
 cli.py            ← 命令行入口
 agent.py          ← 编排层：串联完整流水线
 core/             ← 业务逻辑：抽取 / 匹配 / 校验 / 面试
@@ -68,6 +61,7 @@ static/           ← 前端静态文件（HTML/CSS/JS）
 ```
 .
 ├── app.py                     # FastAPI Web 服务入口
+├── run.py                     # 一键启动脚本
 ├── cli.py                     # 命令行入口
 ├── agent.py                   # Agent 编排层（解析→抽取→RAG→匹配→校验→面试）
 ├── config.py                  # 配置中心（密钥走环境变量，frozen 不可变）
@@ -160,10 +154,10 @@ ENABLE_EMBEDDING_RAG=false
 启动 Web 服务：
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+python run.py
 ```
 
-然后打开浏览器访问：**http://localhost:8000**
+终端会打印可点击的访问地址，浏览器打开 `http://127.0.0.1:8000` 即可使用。
 
 Web 界面功能：
 - 📁 **拖拽上传**：支持 PDF、Word、TXT 格式
@@ -172,7 +166,7 @@ Web 界面功能：
 - 🎤 **面试准备**：定制面试题及出题依据
 - ⚠️ **幻觉校验**：自动检测模型是否夸大候选人经历
 
-**API 文档**：启动后可访问 `http://localhost:8000/docs` 查看完整的 Swagger 交互式 API 文档。
+**API 文档**：启动后可访问 `http://127.0.0.1:8000/docs` 查看完整的 Swagger 交互式 API 文档。
 
 ### 方式二：命令行
 
@@ -195,10 +189,10 @@ python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.
 
 ```bash
 # 健康检查
-curl http://localhost:8000/api/health
+curl http://127.0.0.1:8000/api/health
 
 # 执行评估
-curl -X POST "http://localhost:8000/api/match" \
+curl -X POST "http://127.0.0.1:8000/api/match" \
   -F "resume=@你的简历.pdf" \
   -F "jd=@你的岗位描述.docx"
 ```
@@ -222,10 +216,13 @@ curl -X POST "http://localhost:8000/api/match" \
 
 ## 常见问题
 
+### Q: 启动后访问页面报错 "Form data requires python-multipart"？
+A: 缺少依赖。请运行 `pip install python-multipart`。
+
 ### Q: Web 页面打不开，显示 404？
 A: 
-1. 确认访问的是 `http://localhost:8000/`（带末尾的 `/`）
-2. 访问 `http://localhost:8000/api/health` 检查服务状态
+1. 确认访问的是 `http://127.0.0.1:8000/`（带末尾的 `/`）
+2. 访问 `http://127.0.0.1:8000/api/health` 检查服务状态
 3. 如果 `agent_ready` 为 false，说明 `.env` 文件配置有误
 
 ### Q: 评估失败，提示 API Key 错误？

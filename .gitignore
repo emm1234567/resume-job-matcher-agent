@@ -13,12 +13,3 @@ venv/
 # 输出报告
 report.json
 *_report.json
-
-# IDE
-.idea/
-*.iml
-.vscode/
-
-# 系统
-.DS_Store
-Thumbs.db
