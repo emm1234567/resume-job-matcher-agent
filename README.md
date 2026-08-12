@@ -6,6 +6,14 @@
 
 ---
 
+## ✨ 在线体验
+
+提供两种使用方式：
+- **Web 界面**：通过浏览器上传简历和 JD，可视化查看评估结果
+- **CLI 命令行**：适合批量处理或脚本集成
+
+---
+
 ## 项目亮点
 
 本项目在设计上规避了"套壳 LLM"的常见问题，重点体现三项企业级技术思维：
@@ -39,7 +47,8 @@ JD 文件 ────────────────┘                   
 ### 分层架构
 
 ```
-cli.py            ← 用户入口
+app.py            ← FastAPI Web 服务入口（含路由和静态文件）
+cli.py            ← 命令行入口
 agent.py          ← 编排层：串联完整流水线
 core/             ← 业务逻辑：抽取 / 匹配 / 校验 / 面试
 rag/              ← 多维度检索：Embedding + BM25 双引擎
@@ -47,6 +56,7 @@ llm/              ← LLM 客户端：对话 + 结构化输出
 parsers/          ← 文档解析：PDF / Word / TXT
 schemas/          ← 数据结构：Pydantic 模型定义
 config.py         ← 配置中心：环境变量管理
+static/           ← 前端静态文件（HTML/CSS/JS）
 ```
 
 设计原则：**上层依赖下层，下层不感知上层**，改一层不牵连其他层。
@@ -57,11 +67,14 @@ config.py         ← 配置中心：环境变量管理
 
 ```
 .
-├── config.py                  # 配置中心（密钥走环境变量，frozen 不可变）
-├── agent.py                   # Agent 编排层（解析→抽取→RAG→匹配→校验→面试）
+├── app.py                     # FastAPI Web 服务入口
 ├── cli.py                     # 命令行入口
+├── agent.py                   # Agent 编排层（解析→抽取→RAG→匹配→校验→面试）
+├── config.py                  # 配置中心（密钥走环境变量，frozen 不可变）
 ├── requirements.txt           # 依赖清单
 ├── .env.example               # 环境变量模板
+├── static/                    # 前端静态文件
+│   └── index.html             #   Web 界面
 ├── schemas/                   # 结构化数据模型（Pydantic v2）
 │   ├── resume.py              #   简历结构
 │   ├── job.py                 #   JD 结构
@@ -138,7 +151,30 @@ ENABLE_EMBEDDING_RAG=false
 | Moonshot | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
 | 本地 vLLM | `http://localhost:8000/v1` | 你部署的模型名 |
 
-### 4. 运行
+---
+
+## 使用方式
+
+### 方式一：Web 界面（推荐）
+
+启动 Web 服务：
+
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+然后打开浏览器访问：**http://localhost:8000**
+
+Web 界面功能：
+- 📁 **拖拽上传**：支持 PDF、Word、TXT 格式
+- 📊 **可视化报告**：总分、维度评分、技能匹配一目了然
+- 💡 **改进建议**：针对性提升方案
+- 🎤 **面试准备**：定制面试题及出题依据
+- ⚠️ **幻觉校验**：自动检测模型是否夸大候选人经历
+
+**API 文档**：启动后可访问 `http://localhost:8000/docs` 查看完整的 Swagger 交互式 API 文档。
+
+### 方式二：命令行
 
 ```bash
 python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.txt -v -o report.json
@@ -152,6 +188,20 @@ python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.
 | `--jd` | JD 文件路径（PDF/Word/TXT） |
 | `--output` / `-o` | 评估报告输出 JSON 路径（可选） |
 | `--verbose` / `-v` | 打印阶段进度到 stderr（可选） |
+
+### 方式三：API 调用
+
+如果你需要将 Agent 集成到其他系统，可直接调用 API：
+
+```bash
+# 健康检查
+curl http://localhost:8000/api/health
+
+# 执行评估
+curl -X POST "http://localhost:8000/api/match" \
+  -F "resume=@你的简历.pdf" \
+  -F "jd=@你的岗位描述.docx"
+```
 
 ---
 
@@ -167,6 +217,22 @@ python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.
 - `improvement_suggestions`：可执行的改进建议
 - `interview_questions`：6-8 道定制面试题（含出题依据）
 - `verification_issues`：幻觉校验报告（supported / unsupported / fabricated）
+
+---
+
+## 常见问题
+
+### Q: Web 页面打不开，显示 404？
+A: 
+1. 确认访问的是 `http://localhost:8000/`（带末尾的 `/`）
+2. 访问 `http://localhost:8000/api/health` 检查服务状态
+3. 如果 `agent_ready` 为 false，说明 `.env` 文件配置有误
+
+### Q: 评估失败，提示 API Key 错误？
+A: 检查 `.env` 文件中的 `LLM_API_KEY` 是否正确，`LLM_BASE_URL` 是否匹配服务商。
+
+### Q: 支持哪些文件格式？
+A: PDF (`.pdf`)、Word (`.docx`)、纯文本 (`.txt`)。注意：旧版 `.doc` 格式不直接支持，请先转换为 `.docx`。
 
 ---
 
@@ -203,6 +269,7 @@ python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.
 | 类别 | 技术 | 用途 |
 |------|------|------|
 | 语言 | Python 3.10+ | - |
+| Web 框架 | FastAPI + Uvicorn | 提供 Web 界面和 API 服务 |
 | 数据模型 | Pydantic v2 | 结构化 Schema 定义与校验 |
 | LLM 接口 | openai-python | 兼容 OpenAI 协议的任意服务 |
 | PDF 解析 | pdfplumber | 简历 PDF 文本抽取 |

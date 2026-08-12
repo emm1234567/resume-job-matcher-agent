@@ -7,3 +7,6 @@ rank-bm25>=0.2.2        # 关键词召回（Embedding 不可用时的降级方�
 numpy>=1.24             # 向量相似度计算
 python-dotenv>=1.0      # 加载 .env 配置
 jieba>=0.42             # 中文分词（提升 BM25 召回质量；缺失时自动降级为正则切分）
+fastapi>=0.100.0         # Web 框架
+uvicorn>=0.23.0          # ASGI 服务器
+python-multipart>=0.0.5 # FastAPI 文件上传依赖

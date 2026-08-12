@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历解析与岗配评估 Agent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .upload-card {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-card:hover, .upload-card.dragover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .upload-card.has-file {
+            border-style: solid;
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .upload-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .upload-hint {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .file-name {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: #d1fae5;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #065f46;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .action-bar {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results.active {
+            display: block;
+        }
+        
+        .score-overview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+        
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        .score-value {
+            font-size: 36px;
+            font-weight: 700;
+        }
+        
+        .score-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .score-summary h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .score-summary p {
+            opacity: 0.9;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        
+        .dimension-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .dimension-item {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .dimension-name {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .dimension-score {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .skill-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .skill-item {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .skill-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .skill-years {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .skill-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-met { background: #d1fae5; color: #065f46; }
+        .status-partial { background: #fef3c7; color: #92400e; }
+        .status-missing { background: #fee2e2; color: #991b1b; }
+        .status-exceeded { background: #dbeafe; color: #1e40af; }
+        
+        .suggestion-list, .question-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .suggestion-item, .question-item {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .question-item {
+            border-left-color: #3b82f6;
+        }
+        
+        .question-meta {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .question-text {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        
+        .question-rationale {
+            font-size: 13px;
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        .verification-warn {
+            background: #fef3c7;
+            border-left-color: #f59e0b !important;
+        }
+        
+        .verification-fabricated {
+            background: #fee2e2;
+            border-left-color: #ef4444 !important;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+        
+        .error-box {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #ef4444;
+        }
+        
+        @media (max-width: 768px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+            .score-overview {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 简历解析与岗配评估 Agent</h1>
+            <p>上传简历与 JD，获取结构化匹配评估、改进建议与定制面试题</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-section">
+                <div class="upload-card" id="resume-card">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-label">简历文件</div>
+                    <div class="upload-hint">支持 PDF / Word / TXT 格式</div>
+                    <div class="file-name" id="resume-name" style="display: none;"></div>
+                    <input type="file" id="resume-input" accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                </div>
+                
+                <div class="upload-card" id="jd-card">
+                    <div class="upload-icon">💼</div>
+                    <div class="upload-label">岗位描述 (JD)</div>
+                    <div class="upload-hint">支持 PDF / Word / TXT 格式</div>
+                    <div class="file-name" id="jd-name" style="display: none;"></div>
+                    <input type="file" id="jd-input" accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                </div>
+            </div>
+            
+            <div class="action-bar">
+                <button class="btn-primary" id="submit-btn" disabled>
+                    🚀 开始评估
+                </button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在分析简历与岗位要求，请稍候...</p>
+                <p style="font-size: 12px; margin-top: 8px;">（结构化抽取 → 多路 RAG 召回 → 匹配评分 → 幻觉校验 → 面试题生成）</p>
+            </div>
+            
+            <div class="results" id="results">
+                <div class="score-overview">
+                    <div class="score-circle">
+                        <div class="score-value" id="overall-score">-</div>
+                        <div class="score-label">匹配总分</div>
+                    </div>
+                    <div class="score-summary">
+                        <h2 id="candidate-name">候选人</h2>
+                        <p id="job-title">目标岗位</p>
+                        <p id="match-summary"></p>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">📊 维度评分</h3>
+                    <div class="dimension-grid" id="dimension-grid"></div>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">🎯 技能匹配明细</h3>
+                    <div class="skill-list" id="skill-list"></div>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">💡 改进建议</h3>
+                    <ul class="suggestion-list" id="suggestion-list"></ul>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">🎤 定制面试题</h3>
+                    <ul class="question-list" id="question-list"></ul>
+                </div>
+                
+                <div class="section" id="verification-section" style="display: none;">
+                    <h3 class="section-title">⚠️ 幻觉校验报告</h3>
+                    <ul class="suggestion-list" id="verification-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let resumeFile = null;
+        let jdFile = null;
+        
+        function setupUpload(containerId, inputId, fileNameId, onFileSelected) {
+            const container = document.getElementById(containerId);
+            const input = document.getElementById(inputId);
+            const fileName = document.getElementById(fileNameId);
+            
+            container.addEventListener('click', () => input.click());
+            
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    fileName.textContent = `📎 ${file.name}`;
+                    fileName.style.display = 'block';
+                    container.classList.add('has-file');
+                    onFileSelected(file);
+                }
+            });
+            
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                container.classList.add('dragover');
+            });
+            
+            container.addEventListener('dragleave', () => {
+                container.classList.remove('dragover');
+            });
+            
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                container.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    input.files = e.dataTransfer.files;
+                    fileName.textContent = `📎 ${file.name}`;
+                    fileName.style.display = 'block';
+                    container.classList.add('has-file');
+                    onFileSelected(file);
+                }
+            });
+        }
+        
+        function updateSubmitButton() {
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = !(resumeFile && jdFile);
+        }
+        
+        setupUpload('resume-card', 'resume-input', 'resume-name', (file) => {
+            resumeFile = file;
+            updateSubmitButton();
+        });
+        
+        setupUpload('jd-card', 'jd-input', 'jd-name', (file) => {
+            jdFile = file;
+            updateSubmitButton();
+        });
+        
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            if (!resumeFile || !jdFile) return;
+            
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            loading.classList.add('active');
+            results.classList.remove('active');
+            
+            const formData = new FormData();
+            formData.append('resume', resumeFile);
+            formData.append('jd', jdFile);
+            
+            try {
+                const response = await fetch('/api/match', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.data);
+                } else {
+                    alert('评估失败：' + data.error);
+                }
+            } catch (err) {
+                alert('请求出错：' + err.message);
+            } finally {
+                loading.classList.remove('active');
+            }
+        });
+        
+        function displayResults(data) {
+            const r = data.match || data;
+            
+            // 基本信息
+            document.getElementById('candidate-name').textContent = 
+                data.resume?.personal_info?.name || '未知候选人';
+            document.getElementById('job-title').textContent = 
+                data.job?.title || '未知岗位';
+            document.getElementById('overall-score').textContent = 
+                r.overall_score?.toFixed(1) || '-';
+            document.getElementById('match-summary').textContent = 
+                r.summary || '暂无总结';
+            
+            // 维度评分
+            const dimensionGrid = document.getElementById('dimension-grid');
+            dimensionGrid.innerHTML = '';
+            if (r.dimension_scores?.length) {
+                r.dimension_scores.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = 'dimension-item';
+                    div.innerHTML = `
+                        <div class="dimension-name">${d.dimension}</div>
+                        <div class="dimension-score">${d.score?.toFixed(1) || '-'}</div>
+                    `;
+                    dimensionGrid.appendChild(div);
+                });
+            }
+            
+            // 技能匹配
+            const skillList = document.getElementById('skill-list');
+            skillList.innerHTML = '';
+            if (r.skill_matches?.length) {
+                r.skill_matches.forEach(s => {
+                    const statusClass = `status-${s.status}`;
+                    const div = document.createElement('div');
+                    div.className = 'skill-item';
+                    div.innerHTML = `
+                        <div>
+                            <div class="skill-name">${s.skill}</div>
+                            <div class="skill-years">要求 ${s.required_years} 年 / 候选 ${s.candidate_years} 年</div>
+                        </div>
+                        <div class="skill-status ${statusClass}">${s.status?.toUpperCase()}</div>
+                    `;
+                    skillList.appendChild(div);
+                });
+            }
+            
+            // 改进建议
+            const suggestionList = document.getElementById('suggestion-list');
+            suggestionList.innerHTML = '';
+            if (r.improvement_suggestions?.length) {
+                r.improvement_suggestions.forEach(s => {
+                    const li = document.createElement('li');
+                    li.className = 'suggestion-item';
+                    li.innerHTML = `
+                        <div class="question-meta">[${s.priority?.toUpperCase()}] ${s.area}</div>
+                        <div class="question-text">${s.suggested || s.current}</div>
+                    `;
+                    suggestionList.appendChild(li);
+                });
+            } else {
+                suggestionList.innerHTML = '<li class="empty-state">暂无改进建议</li>';
+            }
+            
+            // 面试题
+            const questionList = document.getElementById('question-list');
+            questionList.innerHTML = '';
+            if (r.interview_questions?.length) {
+                r.interview_questions.forEach((q, i) => {
+                    const li = document.createElement('li');
+                    li.className = 'question-item';
+                    li.innerHTML = `
+                        <div class="question-meta">
+                            Q${i+1} · ${q.category?.toUpperCase()} · ${q.difficulty?.toUpperCase()}
+                        </div>
+                        <div class="question-text">${q.question}</div>
+                        <div class="question-rationale">📝 ${q.rationale || ''}</div>
+                    `;
+                    questionList.appendChild(li);
+                });
+            } else {
+                questionList.innerHTML = '<li class="empty-state">暂无面试题</li>';
+            }
+            
+            // 幻觉校验
+            const verificationSection = document.getElementById('verification-section');
+            const verificationList = document.getElementById('verification-list');
+            verificationList.innerHTML = '';
+            
+            if (r.verification_issues?.length) {
+                const hasFabricated = r.verification_issues.some(v => v.status === 'fabricated');
+                verificationSection.style.display = 'block';
+                
+                r.verification_issues.forEach(v => {
+                    const li = document.createElement('li');
+                    li.className = 'suggestion-item';
+                    if (v.status === 'fabricated') {
+                        li.classList.add('verification-fabricated');
+                    } else if (v.status === 'unsupported') {
+                        li.classList.add('verification-warn');
+                    }
+                    li.innerHTML = `
+                        <div class="question-meta">${v.status?.toUpperCase()} - ${v.claim}</div>
+                        <div class="question-text">${v.evidence_found || '无证据'}</div>
+                        <div class="question-rationale">${v.note || ''}</div>
+                    `;
+                    verificationList.appendChild(li);
+                });
+            } else {
+                verificationSection.style.display = 'none';
+            }
+            
+            results.classList.add('active');
+            results.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
