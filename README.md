@@ -171,7 +171,7 @@ Web 界面功能：
 ### 方式二：命令行
 
 ```bash
-python cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.txt -v -o report.json
+py cli.py --resume sample_data/sample_resume.txt --jd sample_data/sample_jd.txt -v -o report.json
 ```
 
 参数说明：

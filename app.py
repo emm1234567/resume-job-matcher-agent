@@ -99,7 +99,10 @@ if _MULTIPART_AVAILABLE and _AGENT_AVAILABLE:
                 report = agent.run(str(resume_path), str(jd_path), verbose=False)
 
                 # 返回结果
-                return MatchResponse(success=True, data=report.model_dump())
+                # AgentReport 是 dataclass 而非 Pydantic 模型，
+                # 用它自带的 to_json() 序列化，再解析回 dict 交给 FastAPI
+                import json
+                return MatchResponse(success=True, data=json.loads(report.to_json()))
 
         except Exception as e:
             import traceback
